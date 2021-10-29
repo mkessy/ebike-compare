@@ -105,7 +105,7 @@ export const fetchEbikeProductPage = async (
   return axiosResponse.data;
 };
 
-export const scrapeEbikeProductData = (
+export const extractEbikeProductData = (
   rawEbikeProductHTML: string,
   productId: number
 ) => {
