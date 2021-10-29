@@ -1,5 +1,6 @@
 {
   "Scraper": {
-    "baseUrl": "https://www.greenfinder.de/e-bikes/model/?tx_gfproducts_gfproductsef%5Bproduct%5D="
+    "baseUrl": "https://www.greenfinder.de/e-bikes/model/",
+    "productIdParam": "tx_gfproducts_gfproductsef%5Bproduct%5D"
   }
 }
