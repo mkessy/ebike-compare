@@ -5,13 +5,14 @@ import {
 } from "./state/machines";
 
 import { interpret } from "xstate";
+import { scrapeProductData } from "./scraper/scraper";
 
 const initialState: EbikeDataScraperContext = {
   completedBatches: [],
-  initialBatches: null,
-  pendingBatch: null,
-  loadedBatches: null,
-  runningBatch: null,
+  initialBatches: [],
+  pendingBatch: [],
+  loadedBatches: [],
+  runningBatch: [],
 };
 
 const machine = createScraperMachine(initialState);
@@ -30,12 +31,6 @@ service.send({
 });
 
 service.send({ type: "BATCH" });
-
 service.send({ type: "START" });
 
-service.send({ type: "BATCH_COMPLETE" });
-
-service.send({ type: "BATCH" });
-
-service.send({ type: "BATCH_COMPLETE" });
-service.send({ type: "ALL_COMPLETE" });
+console.log(service.state.context.completedBatches[0]);
