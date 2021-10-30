@@ -103,18 +103,20 @@ export const createScraperMachine = (initialState: EbikeDataScraperContext) => {
           },
         },
         idle: {
-          on: {
-            BATCH: {
+          always: [
+            {
               target: "scraping",
               actions: "batch",
+              cond: (context, event) => context.loadedBatches.length > 0,
             },
-            ALL_COMPLETE: {
+            {
               target: "complete",
               actions: (context, event) => {
                 console.log("finished");
               },
+              cond: (context, event) => context.loadedBatches.length === 0,
             },
-          },
+          ],
         },
 
         complete: {},

@@ -27,7 +27,7 @@ service.start();
 
 service.send({
   type: "LOAD_BATCHES",
-  tasksToLoad: [[1], [2], [3], [4], [5], [6]],
+  tasksToLoad: [[1], [2]],
 });
 
 service.send({ type: "BATCH" });
