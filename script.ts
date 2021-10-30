@@ -1,15 +1,41 @@
 import {
-  fetchEbikeProductPage,
-  scrapeEbikeProductData,
-  EbikeDataTable,
-} from "./scraper/scraperFuncs";
-import PromisePool from "@supercharge/promise-pool";
-import log from "./logger/log";
-import fs from "fs";
-import { performance } from "perf_hooks";
+  createScraperMachine,
+  EbikeDataScraperContext,
+  EbikeScraperEvent,
+} from "./state/machines";
 
-/* const scrape = async (productIds: number[]) => {
-  const scrapedEbikeData = await scrapeProductData(productIds);
-  return scrapedEbikeData;
+import { interpret } from "xstate";
+
+const initialState: EbikeDataScraperContext = {
+  completedBatches: [],
+  initialBatches: null,
+  pendingBatch: null,
+  loadedBatches: null,
+  runningBatch: null,
 };
- */
+
+const machine = createScraperMachine(initialState);
+const service = interpret(machine);
+
+service.onTransition((state) => {
+  console.log(state.value);
+  console.log(state.context);
+});
+
+service.start();
+
+service.send({
+  type: "LOAD_BATCHES",
+  tasksToLoad: [[1], [2], [3], [4], [5], [6]],
+});
+
+service.send({ type: "BATCH" });
+
+service.send({ type: "START" });
+
+service.send({ type: "BATCH_COMPLETE" });
+
+service.send({ type: "BATCH" });
+
+service.send({ type: "BATCH_COMPLETE" });
+service.send({ type: "ALL_COMPLETE" });
