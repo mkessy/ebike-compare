@@ -17,50 +17,6 @@ export interface EbikeDataTable {
   misc: any;
 }
 
-type EbikeDataTableRow = [string, string];
-
-interface RawEbikeData {
-  generalInfo: {
-    modelYear: EbikeDataTable;
-    price: EbikeDataTable;
-    category: EbikeDataTable;
-    type: EbikeDataTable;
-    frameType: EbikeDataTable;
-    weight: EbikeDataTable;
-    permMaxWeight: EbikeDataTable;
-    range: EbikeDataTable;
-  };
-
-  engine: {
-    engine: EbikeDataTable;
-    enginePosition: EbikeDataTable;
-    enginePower: EbikeDataTable;
-    assistsUntil: EbikeDataTable;
-    batteryType: EbikeDataTable;
-    batterySpecs: EbikeDataTable;
-    range: EbikeDataTable;
-  };
-
-  gearsBrakes: {
-    gearshiftType: EbikeDataTable;
-    gears: EbikeDataTable;
-    gearsBrand: EbikeDataTable;
-    brakeType: EbikeDataTable;
-    brakesModel: EbikeDataTable;
-  };
-
-  suspension: {
-    suspensionFrontRear: EbikeDataTable;
-  };
-
-  misc: {
-    permMaxWeight: EbikeDataTable;
-    lighting: EbikeDataTable;
-    rack: EbikeDataTable;
-    fenders: EbikeDataTable;
-  };
-}
-
 type DataTableRecord = Record<keyof EbikeDataTable, string | number>;
 
 const buildDataTableStrings = (productId: number): DataTableRecord => {
@@ -76,17 +32,7 @@ const buildDataTableStrings = (productId: number): DataTableRecord => {
   return dataTables;
 };
 
-const axiosConfig: AxiosRequestConfig = {
-  method: "get",
-  baseURL: config.get<string>("Scraper.baseUrl"),
-  timeout: 3000,
-  timeoutErrorMessage: "The request timed out.",
-};
-
-const axiosInstance = axios.create(axiosConfig);
-const productIdParam = config.get<string>("Scraper.productIdParam");
 const baseUrl = config.get("Scraper.baseUrl");
-console.log(baseUrl);
 
 //separate the fetch from the extract method
 //async fetch function and
@@ -112,6 +58,7 @@ export const extractEbikeProductData = (
   const $ = cheerio.load(rawEbikeProductHTML);
 
   const dataTables = buildDataTableStrings(productId);
+  const imgSrc = $("img.product-image[itemprop=image]").attr("src");
 
   const selectedDataTables: Record<
     keyof EbikeDataTable,
@@ -142,5 +89,5 @@ export const extractEbikeProductData = (
     }
   );
   log.info(`Extracted data for product: ${productId}`);
-  return { productId, ...extractedDataTables };
+  return { productId, imgSrc, ...extractedDataTables };
 };

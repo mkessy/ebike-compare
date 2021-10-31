@@ -15,7 +15,7 @@ const initialState: EbikeDataScraperContext = {
   runningBatch: [],
 };
 
-const machine = createScraperMachine(initialState);
+/* const machine = createScraperMachine(initialState);
 const service = interpret(machine);
 
 service.onTransition((state) => {
@@ -27,10 +27,13 @@ service.start();
 
 service.send({
   type: "LOAD_BATCHES",
-  tasksToLoad: [[1], [2]],
+  tasksToLoad: [[1, 8, 123], [2]],
 });
 
 service.send({ type: "BATCH" });
-service.send({ type: "START" });
+service.send({ type: "START" }); */
+scrapeProductData([1231]).then((data) => {
+  console.log(data.results[0]);
+});
 
-console.log(service.state.context.completedBatches[0]);
+//console.log(scrapeProductData([1231]));

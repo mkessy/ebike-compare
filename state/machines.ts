@@ -1,4 +1,5 @@
-import { assign, createMachine, send } from "xstate";
+import { assert } from "console";
+import { assign, createMachine, EventObject, send } from "xstate";
 import { scrapeProductData } from "../scraper/scraper";
 
 type ProductId = number;
@@ -10,7 +11,8 @@ export type EbikeScraperEvent =
   | { type: "LOAD_BATCHES"; tasksToLoad: ScrapeTask[] } //load tasks to the loadedTask context var: STAGING STATE
   | { type: "START" } // start processing tasks on current batch --> transitions to SCRAPING state
   | { type: "BATCH_COMPLETE" } //on completion of a batch of tasks: SCRAPING --> STAGING STATE
-  | { type: "ALL_COMPLETE" }; //on emptying of loaded batches
+  | { type: "ALL_COMPLETE" } //on emptying of loaded batches
+  | { type: "error.platform"; data: any };
 
 // a batch is just a grouping of a ScrapeTask[], a subset of loadedTasks
 
@@ -20,6 +22,7 @@ export interface EbikeDataScraperContext {
   pendingBatch: ScrapeTask;
   runningBatch: ScrapeTask;
   completedBatches: ScrapeTask[];
+  errors?: any[];
 }
 
 type ScraperTypeState =
@@ -99,7 +102,10 @@ export const createScraperMachine = (initialState: EbikeDataScraperContext) => {
                 runningBatch: (context, event) => [],
               }),
             },
-            onError: "idle",
+            onError: {
+              target: "idle",
+              actions: "saveError",
+            },
           },
         },
         idle: {
@@ -140,9 +146,19 @@ export const createScraperMachine = (initialState: EbikeDataScraperContext) => {
         }),
         ///why do i need explicitly type this event? not recognizing it...
         load: assign({
-          loadedBatches: (context, event) =>
-            (event as { type: "LOAD_BATCHES"; tasksToLoad: ScrapeTask[] })
-              .tasksToLoad,
+          loadedBatches: (context, event) => {
+            assertEventType(event, "LOAD_BATCHES");
+            return event.tasksToLoad;
+          },
+        }),
+
+        saveError: assign({
+          errors: (context, event) => {
+            assertEventType(event, "error.platform");
+            return context.errors
+              ? context.errors.concat(event.data)
+              : [event.data];
+          },
         }),
       },
     }
@@ -153,3 +169,14 @@ const invokeScrapeProductData = async (context: EbikeDataScraperContext) => {
   const { runningBatch } = context;
   return scrapeProductData(runningBatch);
 };
+
+function assertEventType<TE extends EventObject, TType extends TE["type"]>(
+  event: TE,
+  eventType: TType
+): asserts event is TE & { type: TType } {
+  if (event.type !== eventType) {
+    throw new Error(
+      `Invalid event: expected "${eventType}", got "${event.type}"`
+    );
+  }
+}
