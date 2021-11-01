@@ -1,9 +1,10 @@
 import PromisePool from "@supercharge/promise-pool/dist";
 import { log } from "console";
+import { ScrapeTask } from "../types";
 import { fetchEbikeProductPage, extractEbikeProductData } from "./scraperFuncs";
 
-export const scrapeProductData = async (productIds: number[]) => {
-  const { results, errors } = await PromisePool.for(productIds)
+export const scrapeProductData = async (scrapeTask: ScrapeTask) => {
+  const { results, errors } = await PromisePool.for(scrapeTask)
     .withConcurrency(10)
     .process(async (productId) => {
       //errors are caught in this block
@@ -14,5 +15,3 @@ export const scrapeProductData = async (productIds: number[]) => {
 
   return { results, errors };
 };
-
-type RawEbikeProductData = ReturnType<typeof extractEbikeProductData>;

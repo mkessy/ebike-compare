@@ -1,6 +1,15 @@
-import { string, object, number, array, TypeOf, InferType } from "yup";
+import {
+  string,
+  object,
+  number,
+  array,
+  TypeOf,
+  InferType,
+  SchemaOf,
+} from "yup";
+import { ScrapedEbikeDataType } from "../types";
 
-export const ScrapedEbikeDataSchema = object({
+export const ScrapedEbikeDataSchema: SchemaOf<ScrapedEbikeDataType> = object({
   productId: number().integer().defined().required(),
   imgSrc: string().defined(),
   modelBrand: array()
@@ -22,5 +31,3 @@ export const ScrapedEbikeDataSchema = object({
     .of(array().of(string().defined()).length(2).defined())
     .defined(),
 }).defined();
-
-export type ScrapedEbikeDataType = InferType<typeof ScrapedEbikeDataSchema>;

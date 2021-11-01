@@ -17,6 +17,20 @@ export interface EbikeDataTable {
   misc: any;
 }
 
+type ProductId = number;
+type EbikeDataField = [string, string];
+
+type ScrapedEbikeDataType = {
+  productId: ProductId;
+  imgSrc: string;
+  modelBrand: EbikeDataField[];
+  generalInfo: EbikeDataField[];
+  engine: EbikeDataField[];
+  gearsBrakes: EbikeDataField[];
+  suspension: EbikeDataField[];
+  misc: EbikeDataField[];
+};
+
 type DataTableRecord = Record<keyof EbikeDataTable, string | number>;
 
 const buildDataTableStrings = (productId: number): DataTableRecord => {
@@ -51,14 +65,19 @@ export const fetchEbikeProductPage = async (
   return axiosResponse.data;
 };
 
-export const extractEbikeProductData = (
+type ExtractEbikeProductDataFunc = (
   rawEbikeProductHTML: string,
-  productId: number
-) => {
+  productId: ProductId
+) => ScrapedEbikeDataType;
+
+export const extractEbikeProductData: ExtractEbikeProductDataFunc = (
+  rawEbikeProductHTML,
+  productId
+): ScrapedEbikeDataType => {
   const $ = cheerio.load(rawEbikeProductHTML);
 
   const dataTables = buildDataTableStrings(productId);
-  const imgSrc = $("img.product-image[itemprop=image]").attr("src");
+  const imgSrc = $("img.product-image[itemprop=image]").attr("src") as string;
 
   const selectedDataTables: Record<
     keyof EbikeDataTable,
@@ -69,7 +88,7 @@ export const extractEbikeProductData = (
 
   const extractedDataTables = mapValues(
     selectedDataTables,
-    (cheerioSelection, key) => {
+    (cheerioSelection, key): EbikeDataField[] => {
       if (key === "modelBrand") {
         return [
           [
@@ -83,7 +102,7 @@ export const extractEbikeProductData = (
       return $("table", cheerioSelection)
         .find("tr")
         .toArray()
-        .map((elem) => {
+        .map<EbikeDataField>((elem) => {
           return [$("td.prop-key", elem).text(), $("td.prop-val", elem).text()];
         });
     }

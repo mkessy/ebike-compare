@@ -1,29 +1,32 @@
 import { assert } from "console";
-import { assign, createMachine, EventObject, send } from "xstate";
+import {
+  assign,
+  createMachine,
+  DoneInvokeEvent,
+  EventObject,
+  send,
+} from "xstate";
+import {
+  Batch,
+  EbikeDataScraperContext,
+  ScrapedEbikeDataType,
+  ScrapeTask,
+  ScrapeTaskResults,
+} from "../types";
 import { scrapeProductData } from "../scraper/scraper";
-
-type ProductId = number;
-type ScrapeTask = ProductId[];
-type CompletedScrapeTask = ReturnType<typeof scrapeProductData>;
 
 export type EbikeScraperEvent =
   | { type: "BATCH" } //push tasks to current batch: STAGING STATE
-  | { type: "LOAD_BATCHES"; tasksToLoad: ScrapeTask[] } //load tasks to the loadedTask context var: STAGING STATE
+  | { type: "LOAD_BATCHES"; batchesToLoad: Batch[] } //load tasks to the loadedTask context var: STAGING STATE
   | { type: "START" } // start processing tasks on current batch --> transitions to SCRAPING state
   | { type: "BATCH_COMPLETE" } //on completion of a batch of tasks: SCRAPING --> STAGING STATE
   | { type: "ALL_COMPLETE" } //on emptying of loaded batches
-  | { type: "error.platform"; data: any };
+  | { type: "error.platform"; data: any }
+  | { type: "done.invoke.scrape-productData"; data: any } //type this data
+  | EventObject
+  | DoneInvokeEvent<ScrapeTaskResults>;
 
 // a batch is just a grouping of a ScrapeTask[], a subset of loadedTasks
-
-export interface EbikeDataScraperContext {
-  initialBatches: ScrapeTask[];
-  loadedBatches: ScrapeTask[];
-  pendingBatch: ScrapeTask;
-  runningBatch: ScrapeTask;
-  completedBatches: ScrapeTask[];
-  errors?: any[];
-}
 
 type ScraperTypeState =
   | {
@@ -66,14 +69,14 @@ export const createScraperMachine = (initialState: EbikeDataScraperContext) => {
           states: {
             notReady: {
               on: {
-                BATCH: {
-                  target: "ready",
-                  actions: "batch",
-                },
-
                 LOAD_BATCHES: {
                   target: "notReady",
                   actions: "load",
+                },
+
+                BATCH: {
+                  target: "ready",
+                  actions: "batch",
                 },
               },
             },
@@ -90,17 +93,13 @@ export const createScraperMachine = (initialState: EbikeDataScraperContext) => {
 
         scraping: {
           //push tasks from context.currentBatch to the queue to start processing
-          entry: "runPendingBatch",
+          entry: "setRunningBatch",
           invoke: {
             id: "scrape-productData",
             src: invokeScrapeProductData,
             onDone: {
               target: "idle",
-              actions: assign({
-                completedBatches: (context, event) =>
-                  context.completedBatches.concat(event.data),
-                runningBatch: (context, event) => [],
-              }),
+              actions: ["completeBatch", "saveAndValidateBatch"],
             },
             onError: {
               target: "idle",
@@ -130,25 +129,35 @@ export const createScraperMachine = (initialState: EbikeDataScraperContext) => {
     },
     {
       actions: {
-        runPendingBatch: assign({
+        setRunningBatch: assign({
           runningBatch: (context, event) => context.pendingBatch,
-          pendingBatch: (context, event) => [],
+          pendingBatch: (context, event) => null,
         }),
         batch: assign({
-          pendingBatch: (context, event) => context.loadedBatches.slice(-1)[0], //add pending batch
-          loadedBatches: (context, event) => context.loadedBatches.slice(0, -1), //remove batch from loadedBatches
+          pendingBatch: (context, event): Batch =>
+            context.loadedBatches.slice(-1)[0], //add pending batch
+          loadedBatches: (context, event): Batch[] =>
+            context.loadedBatches.slice(0, -1), //remove batch from loadedBatches
         }),
         completeBatch: assign({
-          runningBatch: (context, event) => [],
           completedBatches: (context, event) => {
-            return context.completedBatches.concat([context.runningBatch]);
+            assertEventType(event, "done.invoke.scrape-productData");
+            return context.completedBatches.concat(event.data);
           },
+          runningBatch: (context, event) => null,
         }),
+
+        saveAndValidateBatch: (context, event) => {
+          assertEventType(event, "done.invoke.scrape-productData");
+
+          console.log("not yet implemented", event.data);
+        },
+
         ///why do i need explicitly type this event? not recognizing it...
         load: assign({
           loadedBatches: (context, event) => {
             assertEventType(event, "LOAD_BATCHES");
-            return event.tasksToLoad;
+            return event.batchesToLoad;
           },
         }),
 
@@ -167,8 +176,10 @@ export const createScraperMachine = (initialState: EbikeDataScraperContext) => {
 
 const invokeScrapeProductData = async (context: EbikeDataScraperContext) => {
   const { runningBatch } = context;
-  return scrapeProductData(runningBatch);
+  return scrapeProductData(runningBatch!.tasks);
 };
+
+const invokeValidateAndSave = async (context: EbikeDataScraperContext) => {};
 
 function assertEventType<TE extends EventObject, TType extends TE["type"]>(
   event: TE,
