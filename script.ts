@@ -4,8 +4,11 @@ import {
   EbikeScraperEvent,
 } from "./state/machines";
 
-import { interpret } from "xstate";
 import { scrapeProductData } from "./scraper/scraper";
+import {
+  ScrapedEbikeDataSchema,
+  ScrapedEbikeDataType,
+} from "./schemas/schemas";
 
 const initialState: EbikeDataScraperContext = {
   completedBatches: [],
@@ -33,7 +36,11 @@ service.send({
 service.send({ type: "BATCH" });
 service.send({ type: "START" }); */
 scrapeProductData([1231]).then((data) => {
-  console.log(data.results[0]);
+  data.results[0].engine = [[]];
+  const ebikeData: ScrapedEbikeDataType = ScrapedEbikeDataSchema.validateSync(
+    data.results[0]
+  );
+  console.log(ebikeData);
 });
 
 //console.log(scrapeProductData([1231]));
