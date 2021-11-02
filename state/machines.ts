@@ -1,21 +1,14 @@
-import { assert } from "console";
-import {
-  assign,
-  createMachine,
-  DoneInvokeEvent,
-  EventObject,
-  send,
-} from "xstate";
-import {
-  Batch,
-  Data,
-  EbikeDataScraperContext,
-  ScrapedEbikeDataType,
-  ScrapeTask,
-  ScrapeTaskResults,
-} from "../types";
+import { createMachine, DoneInvokeEvent, EventObject } from "xstate";
+import { Batch, EbikeDataScraperContext, ScrapeTaskResults } from "../types";
 import { scrapeProductData } from "../scraper/scraper.js";
-import Lowdb, { Low } from "lowdb";
+import {
+  setContextRunningBatch,
+  batch,
+  completeBatch,
+  saveAndValidateBatch,
+  loadBatches,
+  saveError,
+} from "./helperFuncs.js";
 
 export type EbikeScraperEvent =
   | { type: "BATCH" } //push tasks to current batch: STAGING STATE
@@ -55,10 +48,7 @@ type ScraperTypeState =
       context: EbikeDataScraperContext;
     };
 
-export const createScraperMachine = (
-  initialState: EbikeDataScraperContext,
-  db: Low<Data>
-) => {
+export const createScraperMachine = (initialState: EbikeDataScraperContext) => {
   return createMachine<
     EbikeDataScraperContext,
     EbikeScraperEvent,
@@ -129,53 +119,37 @@ export const createScraperMachine = (
           ],
         },
 
-        complete: {},
+        complete: {
+          entry: (context, event) => {
+            console.log(`
+          END SCRAPER STATE MACHINE\n
+          #########################\n
+          Total: ${context.totalTasksRun}
+          Validated: ${context.totalValidatedProducts}\n
+          InValidated: ${context.totalInvalidProducts}\n
+          Total Scrape errors: ${context.completedBatches.reduce(
+            (errorSum, currCompleted) => {
+              return errorSum + currCompleted.errorCount;
+            },
+            0
+          )}
+          `);
+          },
+        },
       },
     },
     {
       actions: {
-        setRunningBatch: assign({
-          runningBatch: (context, event) => context.pendingBatch,
-          pendingBatch: (context, event) => null,
-        }),
-        batch: assign({
-          pendingBatch: (context, event): Batch =>
-            context.loadedBatches.slice(-1)[0], //add pending batch
-          loadedBatches: (context, event): Batch[] =>
-            context.loadedBatches.slice(0, -1), //remove batch from loadedBatches
-        }),
-        completeBatch: assign({
-          completedBatches: (context, event) => {
-            assertEventType(event, "done.invoke.scrape-productData");
-            return context.completedBatches.concat(event.data);
-          },
-          runningBatch: (context, event) => null,
-        }),
+        setRunningBatch: setContextRunningBatch,
+        batch: batch,
+        completeBatch: completeBatch,
 
-        saveAndValidateBatch: async (context, event) => {
-          assertEventType(event, "done.invoke.scrape-productData");
-          event.data.results.forEach((ebike, i) => {
-            db.data?.ebikes.push(ebike);
-          });
-          await db.write();
-        },
+        saveAndValidateBatch: saveAndValidateBatch,
 
         ///why do i need explicitly type this event? not recognizing it...
-        load: assign({
-          loadedBatches: (context, event) => {
-            assertEventType(event, "LOAD_BATCHES");
-            return event.batchesToLoad;
-          },
-        }),
+        load: loadBatches,
 
-        saveError: assign({
-          errors: (context, event) => {
-            assertEventType(event, "error.platform");
-            return context.errors
-              ? context.errors.concat(event.data)
-              : [event.data];
-          },
-        }),
+        saveError: saveError,
       },
     }
   );
@@ -187,14 +161,3 @@ const invokeScrapeProductData = async (context: EbikeDataScraperContext) => {
 };
 
 const invokeValidateAndSave = async (context: EbikeDataScraperContext) => {};
-
-function assertEventType<TE extends EventObject, TType extends TE["type"]>(
-  event: TE,
-  eventType: TType
-): asserts event is TE & { type: TType } {
-  if (event.type !== eventType) {
-    throw new Error(
-      `Invalid event: expected "${eventType}", got "${event.type}"`
-    );
-  }
-}

@@ -1,3 +1,4 @@
+import Lowdb from "lowdb";
 import { type } from "os";
 import { scrapeProductData } from "./scraper/scraper";
 
@@ -25,14 +26,19 @@ type Awaited<T> = T extends PromiseLike<infer U> ? U : T;
 type ScrapeTaskResults = Awaited<ReturnType<typeof scrapeProductData>>;
 
 export type EbikeDataScraperContext = {
+  db: Lowdb.Low<Data>;
   initialBatches: Batch[];
   loadedBatches: Batch[];
   pendingBatch: Batch | null;
   runningBatch: Batch | null;
-  completedBatches: ScrapeTaskResults[];
+  completedBatches: any[];
+  totalTasksRun: number;
+  totalValidatedProducts: number;
+  totalInvalidProducts: number;
   errors?: any[];
 };
 
 export type Data = {
   ebikes: ScrapedEbikeDataType[];
+  unvalidated: unknown[];
 };
