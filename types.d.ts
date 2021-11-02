@@ -32,3 +32,7 @@ export type EbikeDataScraperContext = {
   completedBatches: ScrapeTaskResults[];
   errors?: any[];
 };
+
+export type Data = {
+  ebikes: ScrapedEbikeDataType[];
+};

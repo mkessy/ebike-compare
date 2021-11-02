@@ -1,11 +1,9 @@
-import { createScraperMachine } from "./state/machines";
+import { createScraperMachine } from "./state/machines.js";
 
-import { EbikeDataScraperContext } from "./types";
+import { Data, EbikeDataScraperContext, ScrapedEbikeDataType } from "./types";
+import { Low, JSONFile } from "lowdb";
+import { entries, set, mapValues } from "lodash-es";
 
-import { scrapeProductData } from "./scraper/scraper";
-import { ScrapedEbikeDataSchema } from "./schemas/schemas";
-import { dirname } from "path";
-import { fileURLToPath, pathToFileURL } from "url";
 import { interpret } from "xstate";
 
 const initialState: EbikeDataScraperContext = {
@@ -16,7 +14,12 @@ const initialState: EbikeDataScraperContext = {
   runningBatch: null,
 };
 
-const machine = createScraperMachine(initialState);
+const adapter = new JSONFile<Data>("db.json");
+const db = new Low<Data>(adapter);
+
+db.data = { ebikes: [] };
+
+const machine = createScraperMachine(initialState, db);
 const service = interpret(machine);
 
 service.onTransition((state) => {
@@ -27,7 +30,7 @@ service.onTransition((state) => {
 service.start();
 
 const batches = [
-  { count: 3, tasks: [1, 8, 123] },
+  { count: 1, tasks: [1] },
   { count: 1, tasks: [2] },
 ];
 

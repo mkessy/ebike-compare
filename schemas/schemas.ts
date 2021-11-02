@@ -1,12 +1,4 @@
-import {
-  string,
-  object,
-  number,
-  array,
-  TypeOf,
-  InferType,
-  SchemaOf,
-} from "yup";
+import { string, object, number, array, SchemaOf } from "yup";
 import { ScrapedEbikeDataType } from "../types";
 
 export const ScrapedEbikeDataSchema: SchemaOf<ScrapedEbikeDataType> = object({

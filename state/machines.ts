@@ -8,12 +8,14 @@ import {
 } from "xstate";
 import {
   Batch,
+  Data,
   EbikeDataScraperContext,
   ScrapedEbikeDataType,
   ScrapeTask,
   ScrapeTaskResults,
 } from "../types";
-import { scrapeProductData } from "../scraper/scraper";
+import { scrapeProductData } from "../scraper/scraper.js";
+import Lowdb, { Low } from "lowdb";
 
 export type EbikeScraperEvent =
   | { type: "BATCH" } //push tasks to current batch: STAGING STATE
@@ -22,7 +24,7 @@ export type EbikeScraperEvent =
   | { type: "BATCH_COMPLETE" } //on completion of a batch of tasks: SCRAPING --> STAGING STATE
   | { type: "ALL_COMPLETE" } //on emptying of loaded batches
   | { type: "error.platform"; data: any }
-  | { type: "done.invoke.scrape-productData"; data: any } //type this data
+  | { type: "done.invoke.scrape-productData"; data: ScrapeTaskResults } //type this data
   | EventObject
   | DoneInvokeEvent<ScrapeTaskResults>;
 
@@ -53,7 +55,10 @@ type ScraperTypeState =
       context: EbikeDataScraperContext;
     };
 
-export const createScraperMachine = (initialState: EbikeDataScraperContext) => {
+export const createScraperMachine = (
+  initialState: EbikeDataScraperContext,
+  db: Low<Data>
+) => {
   return createMachine<
     EbikeDataScraperContext,
     EbikeScraperEvent,
@@ -147,10 +152,12 @@ export const createScraperMachine = (initialState: EbikeDataScraperContext) => {
           runningBatch: (context, event) => null,
         }),
 
-        saveAndValidateBatch: (context, event) => {
+        saveAndValidateBatch: async (context, event) => {
           assertEventType(event, "done.invoke.scrape-productData");
-
-          console.log("not yet implemented", event.data);
+          event.data.results.forEach((ebike, i) => {
+            db.data?.ebikes.push(ebike);
+          });
+          await db.write();
         },
 
         ///why do i need explicitly type this event? not recognizing it...

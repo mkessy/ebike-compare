@@ -1,8 +1,8 @@
 import axios, { AxiosRequestConfig, AxiosResponse } from "axios";
 import cheerio from "cheerio";
 import config from "config";
-import { entries, mapValues, set } from "lodash";
-import log from "../logger/log";
+import { entries, mapValues, set } from "lodash-es";
+import log from "../logger/log.js";
 //consumes a URL and returns an ebik data object
 //refer to images to understand html data structure
 
